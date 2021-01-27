@@ -1,7 +1,7 @@
 require('dotenv').config();
 
 const crypto = require('crypto');
-//const axios = require('axios');
+const axios = require('axios');
 
 var initialLogin = async function () {
   try{
@@ -23,8 +23,9 @@ var initialLogin = async function () {
 
     console.log('NO ACCESS TOKEN, requiring new one');
 
-    //const resp = await axios.post(`https://id.twitch.tv/oauth2/token?client_id=${process.env.CLIENT_ID}&client_secret=${process.env.SECRET}&grant_type=client_credentials`);
-    const resp = {data: "_"};
+    const resp = await axios.post(`https://id.twitch.tv/oauth2/token?client_id=${process.env.CLIENT_ID}&client_secret=${process.env.SECRET}&grant_type=client_credentials`);
+
+    console.log(resp.data);
 
     return {
       port: process.env.PORT,

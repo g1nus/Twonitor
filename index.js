@@ -2,10 +2,12 @@ require('module-alias/register');
 
 const express = require('express');
 const bodyParser = require('body-parser');
+const {fork} = require('child_process');
 
 const security = require('@utils/security');
 
 const app = express();
+var children = [];
 
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
@@ -33,9 +35,49 @@ security.initialLogin().then(
         console.log(`It's a challenge!`);
         res.set('Content-Type', 'text/html');
         res.send(req.body.challenge);
+
+        //spawning new child process for monitoring
+        console.log(`webhook for user ${req.body.subscription.condition.broadcaster_user_id}`);
+
+        let newChild = fork('./units/streamMonitor');
+        newChild.send({
+          id: req.body.subscription.condition.broadcaster_user_id,
+          clientId: config.clientId,
+          authorization: config.authorization.access_token
+        });
+
       }else{
         res.sendStatus(200);
       }
+    })
+
+    router.get('/fork', async (req, res, next) => {
+      try{
+        if(req.query.status === 'true'){
+          console.log('Requesting status');
+          children.map((child) => {
+            console.log({streamer: child.streamer, pid: child.process.pid});
+            child.process.send(child.process.pid);
+          })
+        }else if(req.query.pid !== undefined){
+          console.log(`time to kill ${req.query.pid}!`);
+          process.kill(req.query.pid);
+          let newChildren = children.filter((child) => child.process.pid !== parseInt(req.query.pid, 10));
+          console.log(`THOSE are the new children`, newChildren);
+          children.splice(0, children.length);
+          children = [...newChildren];
+        }else{
+          let newChild = fork('./units/streamMonitor');
+          children.push({streamer: Math.floor(Math.random() * Math.floor(100000)), process: newChild});
+          newChild.send(newChild.pid);
+        }
+        res.sendStatus(200);
+
+      }catch(err){
+        err.name = 400;
+        throw err;
+      }
+
     })
 
     app.use('/', router)
