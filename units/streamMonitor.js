@@ -1,11 +1,36 @@
 const axios = require('axios');
 
+const {Chat, connectDb, disconnectDb} = require('./models/index');
+
+const eraseDatabaseOnSync = true;
+
 console.log("I'm here!");
 
-async function monitor(data){
 
-  console.log(`got this \n`, data);
+function monitor(data){
+  
+  connectDb().then(async () => {
+    console.log(`got this \n`, data);
+    if (eraseDatabaseOnSync) {
+      await Promise.all([
+        //models.Stream.deleteMany({}),
+        Streamer.insertMany([{name: 'carlo', age: Math.floor(Math.random() * Math.floor(100000))}, {name: 'luigi', age: Math.floor(Math.random() * Math.floor(100000))}], function (err){
+          if(err){
+            console.log(err);
+          }else{
+            console.log("success inserting!");
+          }
+        }),
+        //models.Chat.deleteMany({})
+      ]);
+    }
 
+    setTimeout(() => {
+      disconnectDb();      
+    }, 2000);
+  });
+
+  /*
   //axios token setup
   axios.defaults.headers.common['client-id'] = data.clientId;
   axios.defaults.headers.common['Authorization'] = 'Bearer ' + data.authorization;
@@ -42,8 +67,12 @@ async function monitor(data){
     err.name = 400;
     console.log(err);
   }
+  */
 }
 
+monitor(159498717);
+
+/*
 process.on('message', (msg) => {
   if(msg?.id && msg?.clientId && msg?.authorization){
     monitor(msg);
@@ -54,5 +83,6 @@ process.on('message', (msg) => {
 
 process.on('SIGTERM', () => {
   console.log(`WHY? :(\nbye...`);
+  disconnectDb();
   process.exit(0);
-})
+})*/

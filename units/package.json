@@ -9,6 +9,8 @@
   "author": "Giuliano Andronic",
   "license": "ISC",
   "dependencies": {
-    "axios": "^0.21.1"
+    "axios": "^0.21.1",
+    "dank-twitch-irc": "^4.3.0",
+    "mongoose": "^5.11.13"
   }
 }
