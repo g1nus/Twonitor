@@ -1,88 +1,95 @@
 const axios = require('axios');
+require('dotenv').config();
 
-const {Chat, connectDb, disconnectDb} = require('./models/index');
+const {streamerInfo} = require('./modules/twapi');
+const dao = require('./modules/dao');
 
-const eraseDatabaseOnSync = true;
+var processStreamerId = null;
 
-console.log("I'm here!");
+async function monitor({streamerId}){
 
+  processStreamerId = streamerId;
 
-function monitor(data){
-  
-  connectDb().then(async () => {
-    console.log(`got this \n`, data);
-    if (eraseDatabaseOnSync) {
-      await Promise.all([
-        //models.Stream.deleteMany({}),
-        Streamer.insertMany([{name: 'carlo', age: Math.floor(Math.random() * Math.floor(100000))}, {name: 'luigi', age: Math.floor(Math.random() * Math.floor(100000))}], function (err){
-          if(err){
-            console.log(err);
-          }else{
-            console.log("success inserting!");
-          }
-        }),
-        //models.Chat.deleteMany({})
-      ]);
+  dao.connect().then(async () => {
+
+    console.log(`[SM] received streamer ${streamerId}`)
+
+    //reset data if necessary
+    //await dao.resetData();
+
+    //axios token setup
+    axios.defaults.headers.common['client-id'] = process.env.CLIENT_ID;
+    axios.defaults.headers.common['Authorization'] = 'Bearer ' + process.env.ACCESS_TOKEN;
+
+    try{
+
+      //get streamer data and try to add it to the database
+      let resp = await streamerInfo(streamerId);
+      await dao.insertStreamer(streamerId, resp.data);
+
+      //check if the streamer is live
+      if(resp.data.stream){
+        console.log(`[SM] the streamer is live`);
+
+        //check if live is already monitored
+        let liveMonitor = await dao.getStreamById(resp.data.stream.id);
+        //if so stop the process
+        if(liveMonitor){
+          await dao.disconnect();
+          console.log(`\n[${processStreamerId}] this streamer is already monitored, bye...\n`);
+          process.exit(0);
+
+        //otherwise start monitoring
+        }else{
+          let newStreamMdbId = await dao.insertStream(streamerId, resp.data.stream);
+          await dao.pushStreamToStreamer(streamerId, newStreamMdbId);
+          //start actual monitoring here
+        }
+
+      //if the streamer is not live I can stop
+      }else{
+        await dao.disconnect();
+        console.log(`\n[${processStreamerId}] this streamer is not live, bye...\n`);
+        process.exit(0);
+      }
+    
+    //catch axios and dao error
+    }catch (err){
+      err.name = 400;
+      console.log(err);
     }
 
-    setTimeout(() => {
-      disconnectDb();      
-    }, 2000);
-  });
-
-  /*
-  //axios token setup
-  axios.defaults.headers.common['client-id'] = data.clientId;
-  axios.defaults.headers.common['Authorization'] = 'Bearer ' + data.authorization;
-
-  try{
-    let streamerInfo = {};
-
-    const [resp1, resp2, resp3, resp4] = await axios.all([
-      axios.get(`https://api.twitch.tv/helix/channels?broadcaster_id=${data.id}`),
-      axios.get(`https://api.twitch.tv/helix/users?id=${data.id}`),
-      axios.get(`https://api.twitch.tv/helix/users/follows?to_id=${data.id}`),
-      axios.get(`https://api.twitch.tv/helix/streams?user_id=${data.id}`)
-    ])
-
-    streamerInfo.name = resp1.data.data[0].broadcaster_name;
-    streamerInfo.language = resp1.data.data[0].broadcaster_language;
-    streamerInfo.description = resp2.data.data[0].description;
-    streamerInfo.proPic = resp2.data.data[0].profile_image_url;
-    streamerInfo.views = resp2.data.data[0].view_count;
-    streamerInfo.followers = resp3.data.total;
-    if(resp4.data.data[0]){
-      streamerInfo.stream = {};
-      streamerInfo.stream.gameName = resp4.data.data[0].game_name;
-      streamerInfo.stream.gameId = resp4.data.data[0].game_id;
-      streamerInfo.stream.title = resp4.data.data[0].title;
-      streamerInfo.stream.viewers = resp4.data.data[0].viewer_count;
-      streamerInfo.stream.startedAt = resp4.data.data[0].started_at;
-    }else{
-      streamerInfo.stream = false;
-    }
-
-    console.log(streamerInfo);
-  }catch (err){
-    err.name = 400;
+  //catch connection error to database
+  }).catch((err) => {
     console.log(err);
-  }
-  */
-}
-
-monitor(159498717);
+  });
+};
 
 /*
+monitor({streamerId: 536083731});
+setTimeout(() => {
+  monitor({streamerId: 453951609});
+}, 2000);
+*/
+
+//IPC messages handlers
 process.on('message', (msg) => {
-  if(msg?.id && msg?.clientId && msg?.authorization){
+  if(msg?.streamerId){
     monitor(msg);
   }else{
+    console.log('invalid message!')
     process.exit(0);
   }
 });
 
-process.on('SIGTERM', () => {
-  console.log(`WHY? :(\nbye...`);
-  disconnectDb();
+process.on('SIGTERM', async () => {
+  console.log(`\n[${processStreamerId}] bye...\n`);
+  await dao.disconnect();
   process.exit(0);
-})*/
+})
+
+process.on('SIGINT', async () => {
+  console.log(`\n[${processStreamerId}] bye...\n`);
+  await dao.disconnect();
+  process.exit(0);
+})

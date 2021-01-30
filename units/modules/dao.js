@@ -1,0 +1,145 @@
+const {Streamer, Stream, connectDb, disconnectDb} = require('./../models/index');
+
+const connect = function (){
+  return new Promise(function(resolve, reject) {
+    connectDb();
+    resolve();
+  });
+};
+
+const disconnect = function () {
+  return new Promise(function(resolve, reject) {
+    disconnectDb().then(async () => {
+      console.log('[DB] successful disconnection');
+      resolve();
+    })
+  });
+};
+
+const resetData = function () {
+  return new Promise(async function (resolve, reject) {
+    Streamer.deleteMany({}).then(function (){
+      console.log('[DB] success resetting streamer table!');
+      Stream.deleteMany({}).then(function (){
+        console.log('[DB] success resetting stream table!');
+        resolve();
+      }).catch(function (err) {
+        console.log(err);
+        reject();
+      });
+    }).catch(function (err) {
+      console.log(err);
+      reject();
+    });
+  })
+};
+
+const getStreamerById = function(streamerId) {
+  return new Promise(async function (resolve, reject) {
+    Streamer.findOne({streamerId: streamerId}).then(function (streamer) {
+      console.log(`[DB] searching for streamer ${streamerId}`);
+      resolve(streamer);
+    }).catch(function (err) {
+      console.log(err);
+      reject();
+    });
+  });
+};
+
+const getStreamById = function(streamId) {
+  return new Promise(async function (resolve, reject) {
+    console.log(`[DB] serching for stream ${streamId}`);
+    Stream.findOne({streamId: streamId}).then(function (stream) {
+      resolve(stream);
+    }).catch(function (err) {
+      console.log(err);
+      reject();
+    });
+  });
+};
+
+const insertStream = function(streamerId, streamData) {
+  return new Promise(async function (resolve, reject) {
+
+    let stream = await getStreamById(streamData.id);
+
+    if(stream){
+      console.log(`[DB] the stream ${streamData.id} is already present, no insertion required`);
+      resolve(stream._id);
+    }else{
+      const liveStream = new Stream({
+        streamId: streamData.id,
+        streamerId: streamerId,
+        title: streamData.title,
+        startedAt: streamData.startedAt
+      }); 
+
+      liveStream.save().then(function () {
+        console.log('[DB] success adding new stream into database');
+        resolve(liveStream._id);
+      }).catch(function (err) {
+        console.log(err);
+        reject();
+      });
+    }
+  });
+};
+
+const insertStreamer = function(streamerId, streamerData) {
+  return new Promise(async function (resolve, reject) {
+
+    let streamer = await getStreamerById(streamerId);
+
+    if(streamer){
+      console.log(`[DB] the streamer ${streamerId} is already present, no insertion required`);
+      resolve();
+    }else{
+      const liveStreamer = new Streamer({
+        streamerId: streamerId,
+        name: streamerData.name,
+        language: streamerData.language,
+        description: streamerData.description,
+        proPic: streamerData.proPic
+      });
+
+      console.log(`[DB] new object _id : ${liveStreamer._id}`);
+  
+      liveStreamer.save().then(function () {
+        console.log('[DB] success adding new streamer into database');
+        resolve();
+      }).catch(function (err) {
+        console.log(err);
+        reject();
+      });
+    }
+  });
+};
+
+const pushStreamToStreamer = function(streamerId, newStreamMdbId) {
+  return new Promise(async function (resolve, reject) {
+    const liveStreamer = await Streamer.findOne({streamerId: streamerId});
+
+    if(liveStreamer.streams.includes(newStreamMdbId)){
+      console.log(`[DB] stream already associated with streamer, no push required`);
+      resolve();
+    }else{
+      liveStreamer.streams.push(newStreamMdbId);
+
+      liveStreamer.save().then(function () {
+        console.log('[DB] success pushing stream to streamer');
+        resolve();
+      }).catch(function (err) {
+        console.log(err);
+        reject();
+      });
+    }
+  });
+}; 
+
+module.exports = {
+  connect, disconnect, resetData, 
+  insertStream, insertStreamer,
+  pushStreamToStreamer,
+  getStreamerById,
+  getStreamById
+};

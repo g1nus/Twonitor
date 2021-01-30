@@ -26,6 +26,7 @@ const streamerInfo = async function (id) {
     streamerInfo.followers = resp3.data.total;
     if(resp4.data.data[0]){
       streamerInfo.stream = {};
+      streamerInfo.stream.id = resp4.data.data[0].id; //extra field for the monitor
       streamerInfo.stream.gameName = resp4.data.data[0].game_name;
       streamerInfo.stream.gameId = resp4.data.data[0].game_id;
       streamerInfo.stream.title = resp4.data.data[0].title;
@@ -36,6 +37,28 @@ const streamerInfo = async function (id) {
     }
 
     return {data: streamerInfo};
+  }catch (err){
+    err.name = 400;
+    throw err;
+  }
+}
+
+const isStreamerLive = async function (id) {
+  if(!id){
+    let err = new Error(`the id is not defined`);
+    err.name = 404;
+    throw err; 
+  }
+
+  try{
+    const resp = axios.get(`https://api.twitch.tv/helix/streams?user_id=${id}`);
+    console.log('checking if streamer is live');
+    console.log(resp.data);
+    if(resp.data){
+      return true;
+    }else{
+      return false;
+    }
   }catch (err){
     err.name = 400;
     throw err;
@@ -58,5 +81,8 @@ const search = async function (keyword) {
   }
 }
 
-exports.search = search;
-exports.streamerInfo = streamerInfo;
+module.exports = {
+  search,
+  streamerInfo,
+  isStreamerLive
+}
