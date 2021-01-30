@@ -65,7 +65,7 @@ const insertStream = function(streamerId, streamData) {
 
     if(stream){
       console.log(`[DB] the stream ${streamData.id} is already present, no insertion required`);
-      resolve(stream._id);
+      resolve(-1);
     }else{
       const liveStream = new Stream({
         streamId: streamData.id,
@@ -73,6 +73,7 @@ const insertStream = function(streamerId, streamData) {
         title: streamData.title,
         startedAt: streamData.startedAt
       }); 
+      liveStream.tunits.push({viewers: streamData.viewers, title: streamData.title});
 
       liveStream.save().then(function () {
         console.log('[DB] success adding new stream into database');
