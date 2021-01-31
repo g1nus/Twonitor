@@ -1,4 +1,4 @@
-const {Streamer, Stream, connectDb, disconnectDb} = require('./../models/index');
+const {Streamer, Stream, EventList, connectDb, disconnectDb} = require('../../models/index');
 
 const connect = function (){
   return new Promise(function(resolve, reject) {
@@ -22,7 +22,13 @@ const resetData = function () {
       console.log('[DB] success resetting streamer table!');
       Stream.deleteMany({}).then(function (){
         console.log('[DB] success resetting stream table!');
-        resolve();
+        EventList.deleteMany({}).then(function () {
+          console.log('[DB] success resetting chat table!');
+          resolve();
+        }).catch(function (err) {
+          console.log(err);
+          reject();
+        })
       }).catch(function (err) {
         console.log(err);
         reject();
@@ -58,7 +64,7 @@ const getStreamById = function(streamId) {
   });
 };
 
-const insertStream = function(streamerId, streamData) {
+const insertStream = function(streamerId, streamData, followers) {
   return new Promise(async function (resolve, reject) {
 
     let stream = await getStreamById(streamData.id);
@@ -73,7 +79,7 @@ const insertStream = function(streamerId, streamData) {
         title: streamData.title,
         startedAt: streamData.startedAt
       }); 
-      liveStream.tunits.push({viewers: streamData.viewers, title: streamData.title});
+      liveStream.tunits.push({followers: followers, viewers: streamData.viewers, title: streamData.title});
 
       liveStream.save().then(function () {
         console.log('[DB] success adding new stream into database');
@@ -98,6 +104,7 @@ const insertStreamer = function(streamerId, streamerData) {
       const liveStreamer = new Streamer({
         streamerId: streamerId,
         name: streamerData.name,
+        followers: streamerData.followers,
         language: streamerData.language,
         description: streamerData.description,
         proPic: streamerData.proPic
@@ -135,12 +142,29 @@ const pushStreamToStreamer = function(streamerId, newStreamMdbId) {
       });
     }
   });
+};
+
+const pushTunitToStream = function(newTunit) {
+  return new Promise(async function (resolve, reject) {
+
+    const liveStream = await Stream.findOne({streamId: newTunit.streamId});
+    console.log({followers: newTunit.followers, viewers: newTunit.viewers, title: newTunit.title});
+    liveStream.tunits.push({followers: newTunit.followers, viewers: newTunit.viewers, title: newTunit.title});
+
+    liveStream.save().then(function () {
+        console.log(`[DB] success pushing tunit to stream (${newTunit.streamId})`);
+        resolve(liveStream._id);
+      }).catch(function (err) {
+        console.log(err);
+        reject();
+      });
+  });
 }; 
 
 module.exports = {
   connect, disconnect, resetData, 
   insertStream, insertStreamer,
-  pushStreamToStreamer,
+  pushStreamToStreamer, pushTunitToStream,
   getStreamerById,
   getStreamById
 };

@@ -1,22 +1,50 @@
-const axios = require('axios');
 require('dotenv').config();
+const axios = require('axios');
+const {fork} = require('child_process');
 
-const {streamerInfo} = require('./modules/twapi');
-const dao = require('./modules/dao');
+const {streamerInfo, getStreamerLive} = require('./modules/twapi');
+const dao = require('./modules/dao/stream');
 
-var processStreamerId = null;
+var chatChild = null;
 
-async function monitorManager({streamerId}){
+async function monitorManager({streamerId, interval = 10*60000}){
 
   processStreamerId = streamerId;
 
   dao.connect().then(async () => {
 
-    const monitor = async function(){
+    await dao.resetData();
 
+    //monitoring function
+    const monitor = async function(){
+      console.log('[SM-M] start monitoring...');
+      
+      //I get the stream data for the first time
+      let resp = await getStreamerLive(streamerId);
+      let streamData = resp.data.data[0];
+      //since the streamer is live I also start chat monitor
+      chatChild = fork('./units/chatMonitor');
+      chatChild.send({
+        streamerId: streamerId,
+        streamId: streamData.id,
+        channelName: streamData.user_login
+      });
+      
+      setInterval(async () => {
+        console.log(`retrieving data`);
+        //let resp = await getStreamerLive(streamerId);
+        let resp = await streamerInfo(streamerId);
+        const tunit = {
+          streamId: resp.data.stream.id,
+          viewers: resp.data.stream.viewers,
+          title: resp.data.stream.title,
+          followers: resp.data.followers
+        }
+        await dao.pushTunitToStream(tunit);
+      }, interval);
     }
 
-    console.log(`[SM] received streamer ${streamerId}`)
+    console.log(`[SM - (${process.pid})${streamerId}] received streamer`)
 
     //reset data if necessary
     //await dao.resetData();
@@ -36,23 +64,24 @@ async function monitorManager({streamerId}){
         console.log(`[SM] the streamer is live`);
 
         //try to add new stream, if already present, returns -1
-        let newStreamMdbId = await dao.insertStream(streamerId, resp.data.stream);
+        let newStreamMdbId = await dao.insertStream(streamerId, resp.data.stream, resp.data.followers);
         //if the stream is already present and monitored I close
         if(newStreamMdbId === -1){
           await dao.disconnect();
-          console.log(`\n[${processStreamerId}] this streamer is already monitored, bye...\n`);
+          console.log(`\n[${streamId}] this streamer is already monitored, bye...\n`);
           process.exit(0);
 
         //otherwise start monitoring
         }else{
           await dao.pushStreamToStreamer(streamerId, newStreamMdbId);
           //start actual monitoring here
+          monitor();
         }
 
       //if the streamer is not live I can stop
       }else{
         await dao.disconnect();
-        console.log(`\n[${processStreamerId}] this streamer is not live, bye...\n`);
+        console.log(`\n[${streamerId}] this streamer is not live, bye...\n`);
         process.exit(0);
       }
     
@@ -71,7 +100,9 @@ async function monitorManager({streamerId}){
 
 //monitorManager({streamerId: 536083731});
 //setTimeout(() => {
-  monitorManager({streamerId: 159498717});
+  monitorManager({streamerId: 159498717}); //jinny
+  //monitorManager({streamerId: 71190292}); //trainswrektv
+  //monitorManager({streamerId: 6094619}); //jankos
   //monitorManager({streamerId: 453951609});
 //}, 2000);
 
@@ -81,19 +112,33 @@ process.on('message', (msg) => {
   if(msg?.streamerId){
     monitorManager(msg);
   }else{
-    console.log('invalid message!')
+    console.log('[SM] invalid message!')
     process.exit(0);
   }
 });
 
 process.on('SIGTERM', async () => {
-  console.log(`\n[${processStreamerId}] bye...\n`);
+  console.log(`\n[SM - | sigterm]  bye...\n`);
+  console.log(`trying to kill [${chatChild.pid}]`);
+  try {
+    process.kill(chatChild.pid);
+  } catch (err) {
+    console.log('error killing child sub-process!');
+    if(err.code === 'ESRCH') console.log('process already dead');
+  }
   await dao.disconnect();
   process.exit(0);
 })
 
 process.on('SIGINT', async () => {
-  console.log(`\n[${processStreamerId}] bye...\n`);
+  console.log(`\n[SM - | sigkill]  bye...\n`);
+  console.log(`trying to kill [${chatChild.pid}]`);
+  try {
+    process.kill(chatChild.pid);
+  } catch (err) {
+    console.log('error killing child sub-process!');
+    if(err.code === 'ESRCH') console.log('process already dead');
+  }
   await dao.disconnect();
   process.exit(0);
 })

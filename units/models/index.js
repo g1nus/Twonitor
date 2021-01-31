@@ -3,7 +3,7 @@ require('dotenv').config();
 
 const uri = `mongodb://${process.env.DB_USER}:${process.env.DB_PWD}@${process.env.DB_ADDRESS}/twdata?poolSize=20&writeConcern=majority`;
 
-const {chatSchema} = require('./chat');
+const {eventListSchema} = require('./eventList');
 const {streamerSchema} = require('./streamer');
 const {streamSchema} = require('./stream');
 
@@ -17,7 +17,7 @@ const disconnectDb = function () {
 }
 
 module.exports = {
-  Chat: mongoose.model('Chat', chatSchema),
+  EventList: mongoose.model('EventList', eventListSchema),
   Stream: mongoose.model('Stream', streamSchema),
   Streamer: mongoose.model('Streamer', streamerSchema),
   connectDb,

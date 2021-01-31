@@ -65,6 +65,21 @@ const isStreamerLive = async function (id) {
   }
 }
 
+const getStreamerLive = async function (id) {
+  if(!id){
+    let err = new Error(`the id is not defined`);
+    err.name = 404;
+    throw err; 
+  }
+
+  try{
+    return await axios.get(`https://api.twitch.tv/helix/streams?user_id=${id}`);
+  }catch (err){
+    err.name = 400;
+    throw err;
+  }
+}
+
 const search = async function (keyword) {
 
   if(!keyword){
@@ -84,5 +99,6 @@ const search = async function (keyword) {
 module.exports = {
   search,
   streamerInfo,
-  isStreamerLive
+  isStreamerLive,
+  getStreamerLive
 }
