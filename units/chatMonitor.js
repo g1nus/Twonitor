@@ -20,20 +20,10 @@ async function monitor ({streamerId, streamId, channelName, batchLength = 200, i
         console.log(`${key} ${Math.round(used[key] / 1024 / 1024 * 100) / 100} MB`);
       }
 
-      const messages = await dao.extractEventListMessages(streamId);
-      const words = Array.prototype.concat(...messages.map((sentence) => sentence.split(" ").filter((x) => /^[\x00-\x7F]+$/.test(x))));
-      console.log("|||there are " + words.length + " words");
-
-      
-      const result = Object.entries(
-      words.reduce((previous, current) => {
-        if (previous[current] === undefined) previous[current] = 1;
-        else previous[current]++;
-        return previous;
-      }, {})).sort((a, b) => b[1] - a[1]).filter((x) => (x[1] > 1)).slice(0,3);
-
+      let result = await dao.mostCommonWordsInEventList(streamId);
       console.log(`Most used words in the past ${interval} milliseconds : `, result);
       await dao.pushTunitToEventList(streamId, result);
+
     }, interval);
 
     chatClient.on("ready", async function (){
@@ -66,8 +56,8 @@ async function monitor ({streamerId, streamId, channelName, batchLength = 200, i
         //console.log(`[#${msg.channelName}] ${msg.displayName}: ${msg.messageText}`);
         msgs.push({user: msg.displayName, message: msg.messageText});
         if(msgs.length > batchLength && linkedEventList){
-          await dao.pushMessagesToEventList(streamId, msgs);
-          console.log('saved the messages');
+          await dao.pushWordsToEventList(streamId, msgs);
+          //console.log('saved the messages');
           msgs = [];
         }else if(msgs.length > batchLength){
           console.log(`[CM] link to chat not established yet`);
@@ -80,7 +70,7 @@ async function monitor ({streamerId, streamId, channelName, batchLength = 200, i
     //notification handlers
     chatClient.on("USERNOTICE", async (msg) => {
       // sub and resub messages have the same parameters, so we can handle them both the same way
-      console.log("USERNOTICE!!!");
+      console.log("USERNOTICE!!!\n", msg.systemMessage);
       if (msg.isSub() || msg.isResub()) {
         try {
           const subscription = {

@@ -101,6 +101,52 @@ const pushMessagesToEventList = function(streamId, messages) {
   });
 };
 
+const pushWordsToEventList = function(streamId, messages) {
+  return new Promise(async function (resolve, reject) {
+
+    const liveEventList = await EventList.findOne({streamId: streamId});
+    const words = Array.prototype.concat(...messages.map((sentence) => sentence.message.split(" ").filter((x) => /^[\x00-\x7F]+$/.test(x))));
+
+    liveEventList.words.push(...words);
+
+    liveEventList.save().then(function () {
+        console.log(`[DB] success pushing words to events list of stream (${streamId})`);
+        resolve();
+      }).catch(function (err) {
+        console.log(err);
+        reject();
+      });
+  });
+};
+
+const mostCommonWordsInEventList = function(streamId){
+  return new Promise(async function (resolve, reject) {
+
+    const liveEventList = await EventList.findOne({streamId: streamId});
+
+    EventList.aggregate([
+      { $match : { streamId : streamId } },
+      {$unwind: {path: "$words"}},
+      {"$group": {_id: "$words", count: { "$sum": 1}}}, 
+      {"$sort": {count: -1}}, 
+      {"$limit": 3}]).allowDiskUse(true)
+    .then(function (x) {
+      liveEventList.words.splice(0, liveEventList.words.length);
+
+      liveEventList.save().then(function () {
+        console.log(`[DB] success extracting messages of event list (${streamId})`);
+        resolve(x.filter((e) => e.count>1).map((e) => ({word: e._id, count: e.count})));
+      }).catch(function (err) {
+        console.log(err);
+        reject();
+      }); 
+    }).catch(function (err) {
+      console.log(err);
+      reject();
+    });
+  });
+}
+
 const pushSubscriptionToEventList = function(streamId, subscription) {
   return new Promise(async function (resolve, reject) {
 
@@ -189,6 +235,8 @@ module.exports = {
   insertNewEventList,
   linkEventListToStream,
   pushMessagesToEventList,
+  mostCommonWordsInEventList,
+  pushWordsToEventList,
   pushSubscriptionToEventList,
   pushTunitToEventList,
   pushRaidToEventList,

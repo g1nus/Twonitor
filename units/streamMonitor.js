@@ -10,6 +10,7 @@ var chatChild = null;
 async function monitorManager({streamerId, interval = 10*60000}){
 
   processStreamerId = streamerId;
+  processStreamId = null;
 
   dao.connect().then(async () => {
 
@@ -31,11 +32,13 @@ async function monitorManager({streamerId, interval = 10*60000}){
       });
       
       setInterval(async () => {
-        console.log(`retrieving data`);
+        console.log(`[SM] retrieving data`);
         //let resp = await getStreamerLive(streamerId);
         let resp = await streamerInfo(streamerId);
+        console.log(`[SM - ${processStreamId}] retireved the following id : ${resp.data.stream.id}`);
+        if(processStreamId !== resp.data.stream.id) console.log("#############MISMATCH");
         const tunit = {
-          streamId: resp.data.stream.id,
+          streamId: (processStreamId !== resp.data.stream.id) ? processStreamId : resp.data.stream.id,
           viewers: resp.data.stream.viewers,
           title: resp.data.stream.title,
           followers: resp.data.followers
@@ -58,6 +61,7 @@ async function monitorManager({streamerId, interval = 10*60000}){
       //get streamer data and try to add it to the database
       let resp = await streamerInfo(streamerId);
       await dao.insertStreamer(streamerId, resp.data);
+      processStreamId = resp.data.stream.id;
 
       //check if the streamer is live
       if(resp.data.stream){
