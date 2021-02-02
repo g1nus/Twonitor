@@ -5,21 +5,17 @@ const messageSchema = new mongoose.Schema({
   message: {type: String}
 })
 
-const wordsSchema = new mongoose.Schema({
-  word: {type: String}
-})
-
 const subscriptionSchema = new mongoose.Schema({
   user: {type: String},
   months: {type: Number},
   msg: {type: String},
   subPlanName: {type: String}
-})
+}, { timestamps: true })
 
 const raidSchema = new mongoose.Schema({
   user: {type: String},
   viewers: {type: Number}
-})
+}, { timestamps: true })
 
 const wordCount = new mongoose.Schema({
   word: {type: String},
@@ -28,7 +24,7 @@ const wordCount = new mongoose.Schema({
 
 const chatTunitSchema = new mongoose.Schema({
   topWords: [wordCount]
-})
+}, { timestamps: true })
 
 const eventListSchema = new mongoose.Schema({
   streamId: {type: String},

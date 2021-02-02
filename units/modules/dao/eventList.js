@@ -87,42 +87,38 @@ const linkEventListToStream = function(streamId, newEventListMdbId) {
 
 const pushMessagesToEventList = function(streamId, messages) {
   return new Promise(async function (resolve, reject) {
-
-    const liveEventList = await EventList.findOne({streamId: streamId});
-    liveEventList.messages.push(...messages);
-
-    liveEventList.save().then(function () {
-        console.log(`[DB] success pushing messages to events list of stream (${streamId})`);
-        resolve();
-      }).catch(function (err) {
-        console.log(err);
-        reject();
-      });
+    await EventList.updateOne(
+      {streamId: streamId}, 
+      {"$push" : {messages: messages}}
+    ).then(function () {
+      console.log(`[DB] success pushing messages to eventList`)
+      resolve();
+    }).catch(function (err) {
+      console.log(err);
+      reject();
+    });
   });
 };
 
 const pushWordsToEventList = function(streamId, messages) {
   return new Promise(async function (resolve, reject) {
+    const newWords = Array.prototype.concat(...messages.map((sentence) => sentence.message.split(" ").filter((x) => /^[\x00-\x7F]+$/.test(x))));
 
-    const liveEventList = await EventList.findOne({streamId: streamId});
-    const words = Array.prototype.concat(...messages.map((sentence) => sentence.message.split(" ").filter((x) => /^[\x00-\x7F]+$/.test(x))));
-
-    liveEventList.words.push(...words);
-
-    liveEventList.save().then(function () {
-        console.log(`[DB] success pushing words to events list of stream (${streamId})`);
-        resolve();
-      }).catch(function (err) {
-        console.log(err);
-        reject();
-      });
+    await EventList.updateOne(
+      {streamId: streamId}, 
+      {"$push" : {words: newWords}}
+    ).then(function () {
+      console.log(`[DB] success pushing words to eventList`)
+      resolve();
+    }).catch(function (err) {
+      console.log(err);
+      reject();
+    });
   });
 };
 
 const mostCommonWordsInEventList = function(streamId){
   return new Promise(async function (resolve, reject) {
-
-    const liveEventList = await EventList.findOne({streamId: streamId});
 
     EventList.aggregate([
       { $match : { streamId : streamId } },
@@ -130,16 +126,17 @@ const mostCommonWordsInEventList = function(streamId){
       {"$group": {_id: "$words", count: { "$sum": 1}}}, 
       {"$sort": {count: -1}}, 
       {"$limit": 3}]).allowDiskUse(true)
-    .then(function (x) {
-      liveEventList.words.splice(0, liveEventList.words.length);
-
-      liveEventList.save().then(function () {
-        console.log(`[DB] success extracting messages of event list (${streamId})`);
+    .then(async function (x) {
+      await EventList.updateOne(
+        {streamId: streamId}, 
+        {words: []}
+      ).then(function () {
+        console.log(`[DB] success extracting words from eventList`)
         resolve(x.filter((e) => e.count>1).map((e) => ({word: e._id, count: e.count})));
       }).catch(function (err) {
         console.log(err);
         reject();
-      }); 
+      });
     }).catch(function (err) {
       console.log(err);
       reject();
@@ -149,49 +146,46 @@ const mostCommonWordsInEventList = function(streamId){
 
 const pushSubscriptionToEventList = function(streamId, subscription) {
   return new Promise(async function (resolve, reject) {
-
-    const liveEventList = await EventList.findOne({streamId: streamId});
-    liveEventList.subscriptions.push(subscription);
-
-    liveEventList.save().then(function () {
-        console.log(`[DB] success pushing subscription to events list of stream (${streamId})`);
-        resolve();
-      }).catch(function (err) {
-        console.log(err);
-        reject();
-      });
+    await EventList.updateOne(
+      {streamId: streamId}, 
+      {"$push" : {subscriptions: subscription}}
+    ).then(function () {
+      console.log(`[DB] success pushing subscription to eventList`)
+      resolve();
+    }).catch(function (err) {
+      console.log(err);
+      reject();
+    });
   });
 };
 
 const pushTunitToEventList = function(streamId, tunit) {
   return new Promise(async function (resolve, reject) {
-
-    const liveEventList = await EventList.findOne({streamId: streamId});
-    liveEventList.chatTunits.push({topWords: tunit});
-
-    liveEventList.save().then(function () {
-        console.log(`[DB] success pushing most used words to events list of stream (${streamId})`);
-        resolve();
-      }).catch(function (err) {
-        console.log(err);
-        reject();
-      });
+    await EventList.updateOne(
+      {streamId: streamId}, 
+      {"$push" : {chatTunits: [{topWords: tunit}]}}
+    ).then(function () {
+      console.log(`[DB] success pushing tunit to eventList`)
+      resolve();
+    }).catch(function (err) {
+      console.log(err);
+      reject();
+    });
   });
 };
 
 const pushRaidToEventList = function(streamId, raid) {
   return new Promise(async function (resolve, reject) {
-
-    const liveEventList = await EventList.findOne({streamId: streamId});
-    liveEventList.raids.push(raid);
-
-    liveEventList.save().then(function () {
-        console.log(`[DB] success pushing raid to events list of stream (${streamId})`);
-        resolve();
-      }).catch(function (err) {
-        console.log(err);
-        reject();
-      });
+    await EventList.updateOne(
+      {streamId: streamId}, 
+      {"$push" : {raids: raid}}
+    ).then(function () {
+      console.log(`[DB] success pushing raid to eventList`)
+      resolve();
+    }).catch(function (err) {
+      console.log(err);
+      reject();
+    });
   });
 };
 
@@ -216,16 +210,7 @@ const readEventListMessages = function (streamId) {
   return new Promise(async function (resolve, reject) {
     const liveEventList = await EventList.findOne({streamId: streamId});
     const messages = liveEventList.messages;
-
-    liveEventList.save().then(function () {
-      console.log(`[DB] success reading messages of event list (${streamId})`);
-      resolve(messages.map((msgData) => msgData.message));
-    }).catch(function (err) {
-      console.log(err);
-      reject();
-    });    
-
-
+    resolve(messages.map((msgData) => msgData.message));
   });
 }
 

@@ -109,8 +109,6 @@ const insertStreamer = function(streamerId, streamerData) {
         description: streamerData.description,
         proPic: streamerData.proPic
       });
-
-      console.log(`[DB] new object _id : ${liveStreamer._id}`);
   
       liveStreamer.save().then(function () {
         console.log('[DB] success adding new streamer into database');

@@ -1,14 +1,13 @@
 const mongoose = require('mongoose');
 require('dotenv').config();
 
-const uri = `mongodb://${process.env.DB_USER}:${process.env.DB_PWD}@${process.env.DB_ADDRESS}/twdata?poolSize=20&writeConcern=majority`;
+const uri = `mongodb://${process.env.DB_USER}:${process.env.DB_PWD}@${process.env.DB_ADDRESS}/twdata?poolSize=200`;
 
 const {eventListSchema} = require('./eventList');
 const {streamerSchema} = require('./streamer');
 const {streamSchema} = require('./stream');
 
 const connectDb = function () {
-  console.log('connecting to database');
   return mongoose.connect(uri, {useNewUrlParser: true, useUnifiedTopology: true});
 }
 
