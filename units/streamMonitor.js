@@ -18,6 +18,7 @@ async function fetchData (streamerId, processStreamId) {
     console.log(`[SM - ${processStreamId}] retireved the following id : ${resp.data.stream.id}`);
     if(!resp.data.stream){
       console.log(`############THE STREAMER WENT OFFLINE`);
+      chatChild.kill('SIGINT');
       process.exit(0);
     }
     if(processStreamId !== resp.data.stream.id) console.log('#############MISMATCH');
@@ -62,7 +63,7 @@ async function monitor(streamerId, processStreamId, interval = 10*60000){
 }
 
 //main function
-async function monitorManager({streamerId, reset = true}){
+async function monitorManager({streamerId, reset = false}){
 
   //before anything else I connect to the database
   dao.connect().then(async function monitorStart() {
@@ -127,10 +128,21 @@ async function monitorManager({streamerId, reset = true}){
 //monitorManager({streamerId: 536083731});
 //setTimeout(() => {
   //monitorManager({streamerId: 159498717}); //jinnytty
-  monitorManager({streamerId: 57292293}); //RATIRL
+  //monitorManager({streamerId: 57292293}); //RATIRL
+  //monitorManager({streamerId: 50885108}); //vkingplyas
+  //monitorManager({streamerId: 25653002}); //Iwilldominate
+  //monitorManager({streamerId: 51496027}); //loltylerone
+  monitorManager({streamerId: 38746172}); //esfandtv
+  //monitorManager({streamerId: 24538518}); //sneakylol
+  //monitorManager({streamerId: 459331509}); //auron
+  //monitorManager({streamerId: 71092938}); //xqcow
+  //monitorManager({streamerId: 19571641}); //ninja
+  //monitorManager({streamerId: 160504245}); //39daph
   //monitorManager({streamerId: 59308271}); //TFBlade
   //monitorManager({streamerId: 94753024}); //mizkif
   //monitorManager({streamerId: 71190292}); //trainswrektv
+  //monitorManager({streamerId: 124425501});  //lck
+  //monitorManager({streamerId: 101572475}); //mckytv
   //monitorManager({streamerId: 6094619}); //jankos
   //monitorManager({streamerId: 453951609});
 //}, 2000);

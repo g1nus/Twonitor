@@ -34,7 +34,7 @@ function monitorCycle(streamId, interval = 10*60000) {
 }
 */
 
-async function monitor ({streamerId, streamId, channelName, batchLength = 20, linkedEventList = false}) {
+async function monitor ({streamerId, streamId, channelName, batchLength = 200, linkedEventList = false}) {
 
   //first of all I connect to the database
   dao.connect().then(async function chatMonitorStart() {
@@ -88,10 +88,11 @@ async function monitor ({streamerId, streamId, channelName, batchLength = 20, li
 
         //if we surpass the batchLenght and we're linked to the eventList then we push the words into the eventList and delete the messages array
         if(msgs.length > batchLength && linkedEventList){
-          console.log('[CM]pushing words')
-          await dao.pushWordsToEventList(streamId, msgs);
+          let toPush = msgs;
           msgs = [];
-
+          console.log(`[CM]pushing words | tempMessages length : ${toPush.length} | total messages: ${msgCount} / ${msgsMax}`)
+          await dao.pushWordsToEventList(streamId, toPush);
+          
         //otherwise it could be that the list is not linked yey
         }else if(msgs.length > batchLength){
           console.log(`[CM] link to chat not established yet`);
@@ -165,11 +166,11 @@ async function monitor ({streamerId, streamId, channelName, batchLength = 20, li
 //IPC message handlers
 process.on('message', (msg) => {
   if(msg?.streamerId && msg?.streamId && msg?.channelName && msg?.viewers){
-    msgsMax = (msg.viewers*0.5 < 3000) ? 3001 : ((msg.viewers*0.5 > 10000) ? 9973 : msg.viewers*0.5);
+    msgsMax = parseInt((msg.viewers*0.5 < 3000) ? 3001 : ((msg.viewers*0.5 > 10000) ? 9973 : msg.viewers*0.5), 10);
     monitor(msg);
   }else if(msg?.viewers){
       console.log(`[CM] viewers update! - ${msg.viewers}`)
-      msgsMax = (msg.viewers*0.5 < 3000) ? 3001 : ((msg.viewers*0.5 > 10000) ? 9973 : msg.viewers*0.5);
+      msgsMax = parseInt((msg.viewers*0.5 < 3000) ? 3001 : ((msg.viewers*0.5 > 10000) ? 9973 : msg.viewers*0.5), 10);
       console.log(`the new msgmax is ${msgsMax}`);
   }else{
     console.log('[CM] invalid message!')

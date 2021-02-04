@@ -129,10 +129,11 @@ const pushStreamToStreamer = function(streamerId, newStreamMdbId) {
       console.log(`[DB] stream already associated with streamer, no push required`);
       resolve();
     }else{
-      liveStreamer.streams.push(newStreamMdbId);
-
-      liveStreamer.save().then(function () {
-        console.log('[DB] success pushing stream to streamer');
+      await Streamer.updateOne(
+        {streamerId: streamerId}, 
+        {"$push" : {streams: newStreamMdbId}}
+      ).then(function () {
+        console.log(`[DB] success pushing stream to streamer`)
         resolve();
       }).catch(function (err) {
         console.log(err);
