@@ -23,8 +23,9 @@ const wordCount = new mongoose.Schema({
 })
 
 const chatTunitSchema = new mongoose.Schema({
-  topWords: [wordCount]
-}, { timestamps: true })
+  topWords: [wordCount],
+  createdAt: {type: Date, default: Date.now} //timestamp workaround (default mongoose option doesn't work)
+})
 
 const eventListSchema = new mongoose.Schema({
   streamId: {type: String},
