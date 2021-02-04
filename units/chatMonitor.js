@@ -165,10 +165,10 @@ async function monitor ({streamerId, streamId, channelName, batchLength = 200, l
 
 //IPC message handlers
 process.on('message', (msg) => {
-  if(msg?.streamerId && msg?.streamId && msg?.channelName && msg?.viewers){
+  if(msg?.streamerId && msg?.streamId && msg?.channelName && (msg && msg.viewers >= 0)){
     msgsMax = parseInt((msg.viewers*0.5 < 3000) ? 3001 : ((msg.viewers*0.5 > 10000) ? 9973 : msg.viewers*0.5), 10);
     monitor(msg);
-  }else if(msg?.viewers){
+  }else if(msg && msg.viewers >= 0){
       console.log(`[CM] viewers update! - ${msg.viewers}`)
       msgsMax = parseInt((msg.viewers*0.5 < 3000) ? 3001 : ((msg.viewers*0.5 > 10000) ? 9973 : msg.viewers*0.5), 10);
       console.log(`the new msgmax is ${msgsMax}`);
@@ -185,7 +185,7 @@ process.on('SIGTERM', async () => {
 })
 
 process.on('SIGINT', async () => {
-  console.log(`\n[CM - | sigkill] bye...\n`);
+  console.log(`\n[CM - | sigkint] bye...\n`);
   await dao.disconnect();
   process.exit(0);
 })

@@ -9,15 +9,6 @@ const monitorNotification = async function (streamerId) {
       streamerId: streamerId
     });
 
-    /*
-    let newChildChat = fork('./units/chatMonitor');
-    newChildChat.send({
-      streamerId: event.broadcaster_user_id,
-      streamId: event.id,
-      ircChannel: event.broadcaster_user_login,
-    })
-    */
-
     return {streamerId: streamerId, streamMonitor: newChildStream};
     //return {streamerId: event.broadcaster_user_id, streamMonitor: newChildStream, chatMonitor: newChildChat};
 

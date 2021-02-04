@@ -37,16 +37,6 @@ security.initialLogin().then(
         if(req.body.challenge){
           res.set('Content-Type', 'text/html');
           res.send(req.body.challenge);
-
-          /*
-          //TESTING CODE START===========================================
-          if(req.body.subscription.type === "stream.online"){
-            const child = await monitorNotification(req.body.subscription.condition.broadcaster_user_id);
-            children.push(child);
-          }
-          //TESTING CODE END============================
-          */
-
         //otherwise it means it's a notification
         }else{
           const payload = req.body;

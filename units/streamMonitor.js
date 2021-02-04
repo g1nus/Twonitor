@@ -124,29 +124,7 @@ async function monitorManager({streamerId, reset = false}){
   });
 };
 
-
-//monitorManager({streamerId: 536083731});
-//setTimeout(() => {
-  //monitorManager({streamerId: 159498717}); //jinnytty
-  //monitorManager({streamerId: 57292293}); //RATIRL
-  //monitorManager({streamerId: 50885108}); //vkingplyas
-  //monitorManager({streamerId: 25653002}); //Iwilldominate
-  //monitorManager({streamerId: 51496027}); //loltylerone
-  monitorManager({streamerId: 38746172}); //esfandtv
-  //monitorManager({streamerId: 24538518}); //sneakylol
-  //monitorManager({streamerId: 459331509}); //auron
-  //monitorManager({streamerId: 71092938}); //xqcow
-  //monitorManager({streamerId: 19571641}); //ninja
-  //monitorManager({streamerId: 160504245}); //39daph
-  //monitorManager({streamerId: 59308271}); //TFBlade
-  //monitorManager({streamerId: 94753024}); //mizkif
-  //monitorManager({streamerId: 71190292}); //trainswrektv
-  //monitorManager({streamerId: 124425501});  //lck
-  //monitorManager({streamerId: 101572475}); //mckytv
-  //monitorManager({streamerId: 6094619}); //jankos
-  //monitorManager({streamerId: 453951609});
-//}, 2000);
-
+//##################################
 
 //IPC messages handlers
 process.on('message', (msg) => {
@@ -161,11 +139,13 @@ process.on('message', (msg) => {
 process.on('SIGTERM', async () => {
   console.log(`\n[SM - | sigterm]  bye...\n`);
   await dao.disconnect();
+  chatChild.kill('SIGTERM');
   process.exit(0);
 })
 
 process.on('SIGINT', async () => {
-  console.log(`\n[SM - | sigkill]  bye...\n`);
+  console.log(`\n[SM - | sigint]  bye...\n`);
   await dao.disconnect();
+  chatChild.kill('SIGINT');
   process.exit(0);
 })
