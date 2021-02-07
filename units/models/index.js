@@ -1,7 +1,7 @@
 const mongoose = require('mongoose');
 require('dotenv').config();
 
-const uri = `mongodb://${process.env.DB_USER}:${process.env.DB_PWD}@${process.env.DB_ADDRESS}/twdata?poolSize=200`;
+const uri = `mongodb://${process.env.DB_USER}:${process.env.DB_PWD}@${process.env.DB_ADDRESS}?poolSize=200`;
 
 const {eventListSchema} = require('./eventList');
 const {streamerSchema} = require('./streamer');
