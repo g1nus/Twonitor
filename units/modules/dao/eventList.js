@@ -10,7 +10,7 @@ const connect = function (){
 const disconnect = function () {
   return new Promise(function(resolve, reject) {
     disconnectDb().then(async () => {
-      console.log('[DB] successful disconnection');
+      console.log(`[DB${process.pid}] successful disconnection`);
       resolve();
     })
   });
@@ -19,7 +19,7 @@ const disconnect = function () {
 const resetData = function () {
   return new Promise(async function (resolve, reject) {
     EventList.deleteMany({}).then(function (){
-      console.log('[DB] success resetting events list!');
+      console.log(`[DB${process.pid}] success resetting events list!`);
       resolve();
     }).catch(function (err) {
       console.log(err);
@@ -30,7 +30,7 @@ const resetData = function () {
 
 const getEventListByStreamId = function(streamId) {
   return new Promise(async function (resolve, reject) {
-    console.log(`[DB] serching for events of stream ${streamId}`);
+    console.log(`[DB${process.pid}] serching for events of stream ${streamId}`);
     EventList.findOne({streamId: streamId}).then(function (eventList) {
       resolve(eventList);
     }).catch(function (err) {
@@ -46,15 +46,15 @@ const insertNewEventList = function(streamId) {
     let liveEventList = await getEventListByStreamId(streamId);
 
     if(liveEventList){
-      console.log(`[DB] the events of stream ${streamId} are already monitored, no insertion required`);
+      console.log(`[DB${process.pid}] the events of stream (${streamId}) are already monitored, no insertion required`);
       resolve(-1);
 
     }else{
       const eventList = new EventList({
         streamId: streamId
       });
+      console.log(`[DB${process.pid}] the events of stream (${streamId}) are not monitored yet, inserting new event list`);
       eventList.save().then(function () {
-        console.log('[DB] success adding new events list into database');
         resolve(eventList._id);
       }).catch(function (err) {
         console.log(err);
@@ -69,13 +69,12 @@ const linkEventListToStream = function(streamId, newEventListMdbId) {
     const liveStream = await Stream.findOne({streamId: streamId});
 
     if(liveStream.eventList === newEventListMdbId){
-      console.log(`[DB] chat already linked to stream, no link required`);
+      console.log(`[DB${process.pid}] chat already linked to stream (${streamId}), no link required`);
       resolve();
     }else{
       liveStream.eventList = newEventListMdbId;
 
       liveStream.save().then(function () {
-        console.log('[DB] success linking events list to streamer');
         resolve();
       }).catch(function (err) {
         console.log(err);
@@ -91,7 +90,6 @@ const pushMessagesToEventList = function(streamId, messages) {
       {streamId: streamId}, 
       {"$push" : {messages: messages}}
     ).then(function () {
-      console.log(`[DB] success pushing messages to eventList`)
       resolve();
     }).catch(function (err) {
       console.log(err);
@@ -108,7 +106,6 @@ const pushWordsToEventList = function(streamId, messages) {
       {streamId: streamId}, 
       {"$push" : {words: newWords}}
     ).then(function () {
-      console.log(`[DB] success pushing words to eventList`)
       resolve();
     }).catch(function (err) {
       console.log(err);
@@ -131,7 +128,7 @@ const mostCommonWordsInEventList = function(streamId){
         {streamId: streamId}, 
         {words: []}
       ).then(function () {
-        console.log(`[DB] success extracting words from eventList`)
+        console.log(`[DB${process.pid}] success extracting words of ${streamId} from eventList`)
         resolve(x.filter((e) => e.count>1).map((e) => ({word: e._id, count: e.count})));
       }).catch(function (err) {
         console.log(err);
@@ -150,7 +147,6 @@ const pushSubscriptionToEventList = function(streamId, subscription) {
       {streamId: streamId}, 
       {"$push" : {subscriptions: subscription}}
     ).then(function () {
-      console.log(`[DB] success pushing subscription to eventList`)
       resolve();
     }).catch(function (err) {
       console.log(err);
@@ -165,7 +161,6 @@ const pushTunitToEventList = function(streamId, tunit) {
       {streamId: streamId}, 
       {"$push" : {chatTunits: [{topWords: tunit}]}}
     ).then(function () {
-      console.log(`[DB] success pushing tunit to eventList`)
       resolve();
     }).catch(function (err) {
       console.log(err);
@@ -180,7 +175,6 @@ const pushRaidToEventList = function(streamId, raid) {
       {streamId: streamId}, 
       {"$push" : {raids: raid}}
     ).then(function () {
-      console.log(`[DB] success pushing raid to eventList`)
       resolve();
     }).catch(function (err) {
       console.log(err);
@@ -195,7 +189,7 @@ const extractEventListMessages = function (streamId) {
     const messages = liveEventList.messages.splice(0, liveEventList.messages.length);
 
     liveEventList.save().then(function () {
-      console.log(`[DB] success extracting messages of event list (${streamId})`);
+      console.log(`[DB${process.pid}] success extracting messages of event list (${streamId})`);
       resolve(messages.map((msgData) => msgData.message));
     }).catch(function (err) {
       console.log(err);

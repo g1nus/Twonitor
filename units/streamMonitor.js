@@ -8,28 +8,30 @@ const dao = require('./modules/dao/stream');
 var chatChild = null;
 
 async function fetchData (streamerId, processStreamId) {
-  console.log(`[SM - T] retrieving data`);
-
   try {
    //get all of streamer info (containing the active stream info)
     let resp = await streamerInfo(streamerId);
+    console.log(`[SM${process.pid}] retrieving t-unit data for streamer ${resp.data.name}`);
 
     //check if there's a mismatch between the stream we monitor and the actual live stream (may happen when the streamer restarts the stream)
-    console.log(`[SM - ${processStreamId}] retireved the following id : ${resp.data.stream.id}`);
     if(!resp.data.stream){
-      console.log(`############THE STREAMER WENT OFFLINE`);
+      console.log(`[SM${process.pid}] ############THE STREAMER WENT OFFLINE\n └> exiting...\n`);
       chatChild.kill('SIGINT');
       process.exit(0);
     }
-    if(processStreamId !== resp.data.stream.id) console.log('#############MISMATCH');
+    console.log(`[SM${process.pid}] retireved the following id : ${resp.data.stream.id} (previously save id : ${processStreamId})`);
+    if(processStreamId !== resp.data.stream.id) console.log(`[SM${process.pid}] #############MISMATCH`);
 
     //construct time unit
     const tunit = {
       streamId: (processStreamId !== resp.data.stream.id) ? processStreamId : resp.data.stream.id, //quick check for streamId mismatch
       viewers: resp.data.stream.viewers,
       title: resp.data.stream.title,
-      followers: resp.data.followers
+      followers: resp.data.followers,
+      gameName: resp.data.stream.gameName,
+      gameId: resp.data.stream.gameId
     }
+    console.log(`[SM${process.pid}] pushing t-unit for streamer ${resp.data.name}`);
     //push it to stream
     await dao.pushTunitToStream(tunit);
 
@@ -44,11 +46,11 @@ async function fetchData (streamerId, processStreamId) {
 }
 
 async function monitor(streamerId, processStreamId, interval = 10*60000){
-  console.log('[SM-M] start monitoring...');
-  
   //I get the stream data for the first time
   let resp = await getStreamerLive(streamerId);
   let streamData = resp.data.data[0];
+  console.log(`[SM${process.pid}] forking chat monitor for ${streamData.id}...`);
+
   //since the streamer is live I also start chat monitor
   chatChild = fork('./units/chatMonitor');
   chatChild.send({
@@ -67,7 +69,7 @@ async function monitorManager({streamerId, reset = false}){
 
   //before anything else I connect to the database
   dao.connect().then(async function monitorStart() {
-    console.log(`[SM - (${process.pid})${streamerId}] received streamer`);
+    console.log(`[SM${process.pid}] received streamer (${streamerId}) \n └> starting...`);
 
     //the streamId at the start of the monitoring (can be used to check streamId mismatch)
     let processStreamId = null;
@@ -83,23 +85,25 @@ async function monitorManager({streamerId, reset = false}){
 
       //get streamer data and try to add it to the database
       let resp = await streamerInfo(streamerId);
+      console.log(`[SM${process.pid}] streamer name is: ${resp.data.name}`);
       await dao.insertStreamer(streamerId, resp.data);
       processStreamId = resp.data.stream.id;
 
       //check if the streamer is live
       if(resp.data.stream){
-        console.log(`[SM] the streamer is live`);
+        console.log(`[SM${process.pid}] the streamer is live`);
 
         //try to add new stream, if already present, returns -1
         let newStreamMdbId = await dao.insertStream(streamerId, resp.data.stream, resp.data.followers);
         //if the stream is already present and monitored I close
         if(newStreamMdbId === -1){
           await dao.disconnect();
-          console.log(`\n[${streamId}] this streamer is already monitored, bye...\n`);
+          console.log(`\n[SM${process.pid}] this stream (${processStreamId}) is already monitored... \n └> exiting...\n`);
           process.exit(0);
 
         //otherwise start monitoring
         }else{
+          console.log(`[SM${process.pid}] the stream (${processStreamId}) is not monitored... \n └> starting...`);
           await dao.pushStreamToStreamer(streamerId, newStreamMdbId);
           //start actual monitoring here
           monitor(streamerId, processStreamId);
@@ -108,7 +112,7 @@ async function monitorManager({streamerId, reset = false}){
       //if the streamer is not live I can stop
       }else{
         await dao.disconnect();
-        console.log(`\n[${streamerId}] this streamer is not live, bye...\n`);
+        console.log(`\n[SM${process.pid} - ${streamerId}] this streamer is not live... \n └> exiting...\n`);
         process.exit(0);
       }
     
@@ -126,25 +130,27 @@ async function monitorManager({streamerId, reset = false}){
 
 //##################################
 
+monitorManager({streamerId: 160504245});
+
 //IPC messages handlers
 process.on('message', (msg) => {
   if(msg?.streamerId){
     monitorManager(msg);
   }else{
-    console.log('[SM] invalid message!')
+    console.log(`[SM${process.pid}] invalid message! \n └> exiting...\n`)
     process.exit(0);
   }
 });
 
 process.on('SIGTERM', async () => {
-  console.log(`\n[SM - | sigterm]  bye...\n`);
+  console.log(`\n[SM${process.pid} - sigterm] received killing signal, bye...\n`);
   await dao.disconnect();
   chatChild.kill('SIGTERM');
   process.exit(0);
 })
 
 process.on('SIGINT', async () => {
-  console.log(`\n[SM - | sigint]  bye...\n`);
+  console.log(`\n[SM${process.pid} - sigint] received killing signal, bye...\n`);
   await dao.disconnect();
   chatChild.kill('SIGINT');
   process.exit(0);

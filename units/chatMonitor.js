@@ -9,14 +9,14 @@ async function extractAndPullWords(streamId, interval) {
     try {
       //memory usage (for development purposes)
       const used = process.memoryUsage();
-      console.log('MEMORY USAGE!');
+      console.log(`[CM${process.pid}] MEMORY USAGE`);
       for (let key in used) {
         console.log(`${key} ${Math.round(used[key] / 1024 / 1024 * 100) / 100} MB`);
       }
 
       //I extract the most common words from the dao
       let result = await dao.mostCommonWordsInEventList(streamId);
-      console.log(`Most used words in the past ${interval} messages : `, result);
+      console.log(`[CM${process.pid}] Most used words in the past ${interval} messages for stream (${streamId}): `, result);
       //I push the to the time unit
       await dao.pushTunitToEventList(streamId, result);
       resolve();
@@ -38,7 +38,7 @@ async function monitor ({streamerId, streamId, channelName, batchLength = 200, l
 
   //first of all I connect to the database
   dao.connect().then(async function chatMonitorStart() {
-    console.log(`[CM - (${process.pid})${streamerId}] request to monitor chat ${channelName}`);
+    console.log(`[CM${process.pid}] request to monitor chat '${channelName}' of streamer (${streamerId})`);
 
     //array which will temporarely contain messages (emptied every time they're pushed into the database)
     let msgs = [];
@@ -48,7 +48,7 @@ async function monitor ({streamerId, streamId, channelName, batchLength = 200, l
     let chatClient = new ChatClient();
 
     chatClient.on('ready', async function connectChat() {
-      console.log('[CM] Successfully connected to chat');
+      console.log(`[CM${process.pid}] Successfully connected to chat of '${channelName}'`);
 
       //once connected to the chat I create the eventList in the database
       let newEventListMdbId = await dao.insertNewEventList(streamId, streamId);
@@ -56,7 +56,7 @@ async function monitor ({streamerId, streamId, channelName, batchLength = 200, l
       //if I obtain -1 it means that there's already an eventlist for the stream
       if(newEventListMdbId === -1){
         await dao.disconnect();
-        console.log(`\n[CM - ${streamerId}] this streamer chat is already monitored, bye...\n`);
+        console.log(`\n[CM${streamerId}] this streamer chat is already monitored, bye...\n └> exiting...`);
         process.exit(0);
 
       //otherwise I can connect the eventList to the stream
@@ -90,12 +90,12 @@ async function monitor ({streamerId, streamId, channelName, batchLength = 200, l
         if(msgs.length > batchLength && linkedEventList){
           let toPush = msgs;
           msgs = [];
-          console.log(`[CM]pushing words | tempMessages length : ${toPush.length} | total messages: ${msgCount} / ${msgsMax}`)
+          console.log(`[CM${process.pid}]pushing words, total messages: ${msgCount} / ${msgsMax}`)
           await dao.pushWordsToEventList(streamId, toPush);
           
         //otherwise it could be that the list is not linked yey
         }else if(msgs.length > batchLength){
-          console.log(`[CM] link to chat not established yet`);
+          console.log(`[CM${process.pid}] link to chat not established yet`);
         }
 
         //if I reach the max number of messages necessary for analysis then I extract the words and analyze them
@@ -112,7 +112,6 @@ async function monitor ({streamerId, streamId, channelName, batchLength = 200, l
 
     //notification handlers
     chatClient.on('USERNOTICE', async (msg) => {
-      console.log('USERNOTICE!\n', msg.systemMessage);
 
       //sub and resub messages have the same parameters, so we can handle them both the same way
       if (msg.isSub() || msg.isResub()) {
@@ -124,7 +123,7 @@ async function monitor ({streamerId, streamId, channelName, batchLength = 200, l
             msg: msg.messageText,
             subPlanName: msg.eventParams.subPlanName
           }
-          console.log(subscription);
+          console.log(`[CM${process.pid}] new subscription`, subscription);
           //push it to the database
           await dao.pushSubscriptionToEventList(streamId, subscription);
         
@@ -140,7 +139,7 @@ async function monitor ({streamerId, streamId, channelName, batchLength = 200, l
             user: msg.displayName,
             viewers: msg.eventParams.viewerCount
           }
-          console.log(raid);
+          console.log(`[CM${process.pid}] new raid`, raid, msg.eventParams);
           //push it to the database
           await dao.pushRaidToEventList(streamId, raid);
         
@@ -169,23 +168,22 @@ process.on('message', (msg) => {
     msgsMax = parseInt((msg.viewers*0.5 < 3000) ? 3001 : ((msg.viewers*0.5 > 10000) ? 9973 : msg.viewers*0.5), 10);
     monitor(msg);
   }else if(msg && msg.viewers >= 0){
-      console.log(`[CM] viewers update! - ${msg.viewers}`)
       msgsMax = parseInt((msg.viewers*0.5 < 3000) ? 3001 : ((msg.viewers*0.5 > 10000) ? 9973 : msg.viewers*0.5), 10);
-      console.log(`the new msgmax is ${msgsMax}`);
+      console.log(`[CM${process.pid}] the new msgmax is ${msgsMax}`);
   }else{
-    console.log('[CM] invalid message!')
+    console.log(`[CM${process.pid}] invalid message!`)
     process.exit(0);
   }
 });
 
 process.on('SIGTERM', async () => {
-  console.log(`\n[CM - | sigterm] bye...\n`);
+  console.log(`\n[CM${process.pid} - sigterm] received killing signal, bye...\n`);
   await dao.disconnect();
   process.exit(0);
 })
 
 process.on('SIGINT', async () => {
-  console.log(`\n[CM - | sigkint] bye...\n`);
+  console.log(`\n[CM${process.pid} - sigint] received killing signal, bye...\n`);
   await dao.disconnect();
   process.exit(0);
 })

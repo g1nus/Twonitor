@@ -10,7 +10,7 @@ const connect = function (){
 const disconnect = function () {
   return new Promise(function(resolve, reject) {
     disconnectDb().then(async () => {
-      console.log('[DB] successful disconnection');
+      console.log(`[DB${process.pid}] successful disconnection`);
       resolve();
     })
   });
@@ -19,11 +19,11 @@ const disconnect = function () {
 const resetData = function () {
   return new Promise(async function (resolve, reject) {
     Streamer.deleteMany({}).then(function (){
-      console.log('[DB] success resetting streamer table!');
+      console.log(`[DB${process.pid}] success resetting streamer table!`);
       Stream.deleteMany({}).then(function (){
-        console.log('[DB] success resetting stream table!');
+        console.log(`[DB${process.pid}] success resetting stream table!`);
         EventList.deleteMany({}).then(function () {
-          console.log('[DB] success resetting chat table!');
+          console.log(`[DB${process.pid}] success resetting chat table!`);
           resolve();
         }).catch(function (err) {
           console.log(err);
@@ -43,7 +43,6 @@ const resetData = function () {
 const getStreamerById = function(streamerId) {
   return new Promise(async function (resolve, reject) {
     Streamer.findOne({streamerId: streamerId}).then(function (streamer) {
-      console.log(`[DB] searching for streamer ${streamerId}`);
       resolve(streamer);
     }).catch(function (err) {
       console.log(err);
@@ -54,7 +53,6 @@ const getStreamerById = function(streamerId) {
 
 const getStreamById = function(streamId) {
   return new Promise(async function (resolve, reject) {
-    console.log(`[DB] serching for stream ${streamId}`);
     Stream.findOne({streamId: streamId}).then(function (stream) {
       resolve(stream);
     }).catch(function (err) {
@@ -70,19 +68,21 @@ const insertStream = function(streamerId, streamData, followers) {
     let stream = await getStreamById(streamData.id);
 
     if(stream){
-      console.log(`[DB] the stream ${streamData.id} is already present, no insertion required`);
+      console.log(`[DB${process.pid}] the stream ${streamData.id} is already present, no insertion required`);
       resolve(-1);
     }else{
       const liveStream = new Stream({
         streamId: streamData.id,
         streamerId: streamerId,
         title: streamData.title,
-        startedAt: streamData.startedAt
+        startedAt: streamData.startedAt,
+        gameName: streamData.gameName,
+        gameId: streamData.gameId,
+        thumbnail: `https://alpha.mangolytica.tk/static/${streamData.id}.jpg`
       }); 
-      liveStream.tunits.push({followers: followers, viewers: streamData.viewers, title: streamData.title});
+      liveStream.tunits.push({followers: followers, viewers: streamData.viewers, title: streamData.title, gameName: streamData.gameName, gameId: streamData.gameId});
 
       liveStream.save().then(function () {
-        console.log('[DB] success adding new stream into database');
         resolve(liveStream._id);
       }).catch(function (err) {
         console.log(err);
@@ -98,7 +98,7 @@ const insertStreamer = function(streamerId, streamerData) {
     let streamer = await getStreamerById(streamerId);
 
     if(streamer){
-      console.log(`[DB] the streamer ${streamerId} is already present, no insertion required`);
+      console.log(`[DB${process.pid}] the streamer ${streamerId} is already present, no insertion required`);
       resolve();
     }else{
       const liveStreamer = new Streamer({
@@ -111,7 +111,6 @@ const insertStreamer = function(streamerId, streamerData) {
       });
   
       liveStreamer.save().then(function () {
-        console.log('[DB] success adding new streamer into database');
         resolve();
       }).catch(function (err) {
         console.log(err);
@@ -126,14 +125,13 @@ const pushStreamToStreamer = function(streamerId, newStreamMdbId) {
     const liveStreamer = await Streamer.findOne({streamerId: streamerId});
 
     if(liveStreamer.streams.includes(newStreamMdbId)){
-      console.log(`[DB] stream already associated with streamer, no push required`);
+      console.log(`[DB${process.pid}] stream already associated with streamer (${streamerId}), no push required`);
       resolve();
     }else{
       await Streamer.updateOne(
         {streamerId: streamerId}, 
         {"$push" : {streams: newStreamMdbId}}
       ).then(function () {
-        console.log(`[DB] success pushing stream to streamer`)
         resolve();
       }).catch(function (err) {
         console.log(err);
@@ -147,11 +145,10 @@ const pushTunitToStream = function(newTunit) {
   return new Promise(async function (resolve, reject) {
 
     const liveStream = await Stream.findOne({streamId: newTunit.streamId});
-    console.log({followers: newTunit.followers, viewers: newTunit.viewers, title: newTunit.title});
-    liveStream.tunits.push({followers: newTunit.followers, viewers: newTunit.viewers, title: newTunit.title});
+    console.log({followers: newTunit.followers, viewers: newTunit.viewers, title: newTunit.title, gameName: newTunit.gameName, gameId: newTunit.gameId});
+    liveStream.tunits.push({followers: newTunit.followers, viewers: newTunit.viewers, title: newTunit.title, gameName: newTunit.gameName, gameId: newTunit.gameId});
 
     liveStream.save().then(function () {
-        console.log(`[DB] success pushing tunit to stream (${newTunit.streamId})`);
         resolve(liveStream._id);
       }).catch(function (err) {
         console.log(err);

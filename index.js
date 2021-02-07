@@ -32,6 +32,7 @@ security.initialLogin().then(
 
     //Twitch notifications hook
     router.post('/t-callback', async (req, res, next) => {
+      console.log(req.body);
       try{
         //if it's a challenge I reply with the challenge
         if(req.body.challenge){
@@ -47,12 +48,14 @@ security.initialLogin().then(
 
           //check if a channel went live
           if(payload.event.type === "live"){
+            console.log(`[SRV] the streamer ${payload.event.broadcaster_user_id} went live`)
             //if so, then wait for the monitor to start the sub-process
             const child = await monitorNotification(payload.event.broadcaster_user_id);
             children.push(child);
 
           //otherwise it means the channel is going offline
           }else{
+            console.log(`[SRV] the streamer ${payload.subscription.condition.broadcaster_user_id} went offline`)
             //try to find sub-process representing the streamer 
             const p = children.find((child) => child.streamerId === payload.subscription.condition.broadcaster_user_id);
             //if I find it then I kill the process and remove it from the array of sub-processes
