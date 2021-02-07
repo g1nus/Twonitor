@@ -1,4 +1,6 @@
 const axios = require('axios');
+const Fs = require('fs')  
+const Path = require('path')  
 
 const streamerInfo = async function (id) {
 
@@ -32,6 +34,17 @@ const streamerInfo = async function (id) {
       streamerInfo.stream.title = resp4.data.data[0].title;
       streamerInfo.stream.viewers = resp4.data.data[0].viewer_count;
       streamerInfo.stream.startedAt = resp4.data.data[0].started_at;
+
+      //save the thumbnail of the stream
+      const path = Path.join('./../Twapp/public/thumbnails', `${resp4.data.data[0].id}.jpg`)
+      const writer = Fs.createWriteStream(path)
+      const thumbnail = await axios.get(`https://static-cdn.jtvnw.net/previews-ttv/live_user_${resp2.data.data[0].login}.jpg`, {responseType: 'stream'});
+      thumbnail.data.pipe(writer);
+      await new Promise((resolve, reject) => {
+        writer.on('finish', resolve)
+        writer.on('error', reject)
+      });
+    
     }else{
       streamerInfo.stream = false;
     }
