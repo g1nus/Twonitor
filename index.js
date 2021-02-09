@@ -9,6 +9,8 @@ const {monitorNotification} = require('@controllers/callbacks');
 const app = express();
 //array of sub-processes
 var children = [];
+//support array of currently monitored streamers
+var streamers = [];
 
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
@@ -32,7 +34,8 @@ security.initialLogin().then(
 
     //Twitch notifications hook
     router.post('/t-callback', async (req, res, next) => {
-      console.log(req.body);
+      console.log(`########\n`, req.body, `\n########\n`);
+      console.log(`Current monitored ids`, streamers);
       try{
         //if it's a challenge I reply with the challenge
         if(req.body.challenge){
@@ -48,10 +51,17 @@ security.initialLogin().then(
 
           //check if a channel went live
           if(payload.event.type === "live"){
-            console.log(`[SRV] the streamer ${payload.event.broadcaster_user_id} went live`)
-            //if so, then wait for the monitor to start the sub-process
-            const child = await monitorNotification(payload.event.broadcaster_user_id);
-            children.push(child);
+            console.log(`[SRV] the streamer ${payload.event.broadcaster_user_id} went live`);
+
+            //check if the streamer is already monitored (used to avoid double callbacks from twitch  )
+            if(streamers.includes(payload.event.broadcaster_user_id)){
+              console.log(`[SRV] the streamer ${payload.event.broadcaster_user_id} is already being monitored`);
+            }else{
+              streamers.push(payload.event.broadcaster_user_id);
+              //if the streamer is not monitored yet then wait for the monitor to start the sub-process
+              const child = await monitorNotification(payload.event.broadcaster_user_id);
+              children.push(child);
+            }
 
           //otherwise it means the channel is going offline
           }else{
@@ -60,11 +70,22 @@ security.initialLogin().then(
             const p = children.find((child) => child.streamerId === payload.subscription.condition.broadcaster_user_id);
             //if I find it then I kill the process and remove it from the array of sub-processes
             if(p){
-              process.kill(p.streamMonitor.pid);
+              console.log(`[SRV] killing sub-process and cleaning arrays`);
+              try{
+                process.kill(p.streamMonitor.pid);
+              }catch (err){
+                console.log(`error killing process, maybe already dead`);
+              }
 
+              //clean the array of children processes
               let newChildren = children.filter((child) => child.streamMonitor.pid !== p.streamMonitor.pid);
               children.splice(0, children.length);
               children = [...newChildren];
+
+              //clean the supporting array of streamers id
+              let newStreamers = streamers.filter((child) => child !== payload.subscription.condition.broadcaster_user_id);
+              streamers.splice(0, streamers.length);
+              streamers = [...newStreamers];
             }
           }
         }

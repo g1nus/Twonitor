@@ -1,11 +1,14 @@
 require('dotenv').config();
 const axios = require('axios');
 const {fork} = require('child_process');
+const fs = require('fs');
+const path = require('path');
 
 const {streamerInfo, getStreamerLive} = require('./modules/twapi');
 const dao = require('./modules/dao/stream');
 
 var chatChild = null;
+var lockFile;
 
 async function fetchData (streamerId, processStreamId) {
   try {
@@ -16,6 +19,7 @@ async function fetchData (streamerId, processStreamId) {
     //check if there's a mismatch between the stream we monitor and the actual live stream (may happen when the streamer restarts the stream)
     if(!resp.data.stream){
       console.log(`[SM${process.pid}] ############THE STREAMER WENT OFFLINE\n └> exiting...\n`);
+      fs.unlinkSync(lockFile);
       chatChild.kill('SIGINT');
       process.exit(0);
     }
@@ -65,11 +69,11 @@ async function monitor(streamerId, processStreamId, interval = 10*60000){
 }
 
 //main function
-async function monitorManager({streamerId, reset = false}){
-
+async function monitorManager(streamerId, reset){
+  
   //before anything else I connect to the database
   dao.connect().then(async function monitorStart() {
-    console.log(`[SM${process.pid}] received streamer (${streamerId}) \n └> starting...`);
+    console.log(`[SM${process.pid}] received streamer (${streamerId}) \n └> checking...`);
 
     //the streamId at the start of the monitoring (can be used to check streamId mismatch)
     let processStreamId = null;
@@ -128,14 +132,30 @@ async function monitorManager({streamerId, reset = false}){
   });
 };
 
-//##################################
+//main function
+function startMonitor({streamerId, reset = false}){
+  //first of all I set a lock to avoid double monitor on same streamer
+  const lockName = streamerId + '.lock';
+  lockFile = path.join('/','tmp',lockName);
+  console.log(`[SM${process.pid}] starting...\n └> creating the following lock file: ${lockFile}`);
 
-monitorManager({streamerId: 160504245});
+  const lock = fs.existsSync(lockFile);
+  if(lock){
+    console.log(`[SM${process.pid}] streamer already locked. \n └> exiting...`);
+    process.exit(0);
+  }else{
+    console.log(`[SM${process.pid}] locking resource...`);
+	  fs.writeFileSync(lockFile, '');
+    monitorManager(streamerId, reset);
+  }
+}
+
+//##################################
 
 //IPC messages handlers
 process.on('message', (msg) => {
   if(msg?.streamerId){
-    monitorManager(msg);
+    startMonitor(msg);
   }else{
     console.log(`[SM${process.pid}] invalid message! \n └> exiting...\n`)
     process.exit(0);
@@ -144,6 +164,8 @@ process.on('message', (msg) => {
 
 process.on('SIGTERM', async () => {
   console.log(`\n[SM${process.pid} - sigterm] received killing signal, bye...\n`);
+  console.log(`[SM${process.pid}] unlinking lock...`)
+  fs.unlinkSync(lockFile)
   await dao.disconnect();
   chatChild.kill('SIGTERM');
   process.exit(0);
@@ -151,6 +173,8 @@ process.on('SIGTERM', async () => {
 
 process.on('SIGINT', async () => {
   console.log(`\n[SM${process.pid} - sigint] received killing signal, bye...\n`);
+  console.log(`[SM${process.pid}] unlinking lock...`)
+  fs.unlinkSync(lockFile)
   await dao.disconnect();
   chatChild.kill('SIGINT');
   process.exit(0);
