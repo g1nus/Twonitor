@@ -103,11 +103,12 @@ const insertStreamer = function(streamerId, streamerData) {
     }else{
       const liveStreamer = new Streamer({
         streamerId: streamerId,
-        name: streamerData.name,
+        displayName: streamerData.displayName,
+        loginName: streamerData.loginName,
         followers: streamerData.followers,
-        language: streamerData.language,
+        broadcasterLanguage: streamerData.language,
         description: streamerData.description,
-        proPic: streamerData.proPic
+        profilePicture: streamerData.profilePicture
       });
   
       liveStreamer.save().then(function () {

@@ -14,7 +14,7 @@ async function fetchData (streamerId, processStreamId) {
   try {
    //get all of streamer info (containing the active stream info)
     let resp = await streamerInfo(streamerId);
-    console.log(`[SM${process.pid}] retrieving t-unit data for streamer ${resp.data.name}`);
+    console.log(`[SM${process.pid}] retrieving t-unit data for streamer ${resp.data.displayName}`);
 
     //check if there's a mismatch between the stream we monitor and the actual live stream (may happen when the streamer restarts the stream)
     if(!resp.data.stream){
@@ -35,7 +35,7 @@ async function fetchData (streamerId, processStreamId) {
       gameName: resp.data.stream.gameName,
       gameId: resp.data.stream.gameId
     }
-    console.log(`[SM${process.pid}] pushing t-unit for streamer ${resp.data.name}`);
+    console.log(`[SM${process.pid}] pushing t-unit for streamer ${resp.data.displayName}`);
     //push it to stream
     await dao.pushTunitToStream(tunit);
 
@@ -89,7 +89,7 @@ async function monitorManager(streamerId, reset){
 
       //get streamer data and try to add it to the database
       let resp = await streamerInfo(streamerId);
-      console.log(`[SM${process.pid}] streamer name is: ${resp.data.name}`);
+      console.log(`[SM${process.pid}] streamer name is: ${resp.data.displayName}`);
       await dao.insertStreamer(streamerId, resp.data);
       processStreamId = resp.data.stream.id;
 
@@ -103,6 +103,7 @@ async function monitorManager(streamerId, reset){
         if(newStreamMdbId === -1){
           await dao.disconnect();
           console.log(`\n[SM${process.pid}] this stream (${processStreamId}) is already monitored... \n └> exiting...\n`);
+          fs.unlinkSync(lockFile);
           process.exit(0);
 
         //otherwise start monitoring
@@ -117,6 +118,7 @@ async function monitorManager(streamerId, reset){
       }else{
         await dao.disconnect();
         console.log(`\n[SM${process.pid} - ${streamerId}] this streamer is not live... \n └> exiting...\n`);
+        fs.unlinkSync(lockFile);
         process.exit(0);
       }
     

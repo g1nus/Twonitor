@@ -20,10 +20,11 @@ const streamerInfo = async function (id) {
       axios.get(`https://api.twitch.tv/helix/streams?user_id=${id}`)
     ])
 
-    streamerInfo.name = resp1.data.data[0].broadcaster_name;
+    streamerInfo.displayName = resp2.data.data[0].display_name;
+    streamerInfo.loginName = resp2.data.data[0].login;
     streamerInfo.language = resp1.data.data[0].broadcaster_language;
     streamerInfo.description = resp2.data.data[0].description;
-    streamerInfo.proPic = resp2.data.data[0].profile_image_url;
+    streamerInfo.profilePicture = resp2.data.data[0].profile_image_url;
     streamerInfo.views = resp2.data.data[0].view_count;
     streamerInfo.followers = resp3.data.total;
     if(resp4.data.data[0]){
