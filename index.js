@@ -34,7 +34,7 @@ security.initialLogin().then(
 
     //Twitch notifications hook
     router.post('/t-callback', async (req, res, next) => {
-      console.log(`########\n`, req.body, `\n########\n`);
+      console.log(`########\n`, req.body, `\n########\n`, new Date(), '\n###########################\n');
       console.log(`Current monitored ids`, streamers);
       try{
         //if it's a challenge I reply with the challenge

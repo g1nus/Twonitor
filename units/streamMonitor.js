@@ -18,7 +18,7 @@ async function fetchData (streamerId, processStreamId) {
 
     //check if there's a mismatch between the stream we monitor and the actual live stream (may happen when the streamer restarts the stream)
     if(!resp.data.stream){
-      console.log(`[SM${process.pid}] ############THE STREAMER WENT OFFLINE\n └> exiting...\n`);
+      console.log(`[SM${process.pid}] ############THE STREAMER WENT OFFLINE\n └> exiting...\n`, new Date(), '\n###\n');
       fs.unlinkSync(lockFile);
       chatChild.kill('SIGINT');
       process.exit(0);
@@ -165,7 +165,7 @@ process.on('message', (msg) => {
 });
 
 process.on('SIGTERM', async () => {
-  console.log(`\n[SM${process.pid} - sigterm] received killing signal, bye...\n`);
+  console.log(`\n[SM${process.pid} - sigterm] received killing signal, bye...\n`, new Date(), '\n###\n');
   console.log(`[SM${process.pid}] unlinking lock...`)
   fs.unlinkSync(lockFile)
   await dao.disconnect();
@@ -174,7 +174,7 @@ process.on('SIGTERM', async () => {
 })
 
 process.on('SIGINT', async () => {
-  console.log(`\n[SM${process.pid} - sigint] received killing signal, bye...\n`);
+  console.log(`\n[SM${process.pid} - sigint] received killing signal, bye...\n`, new Date(), '\n###\n');
   console.log(`[SM${process.pid}] unlinking lock...`)
   fs.unlinkSync(lockFile)
   await dao.disconnect();
