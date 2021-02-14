@@ -98,8 +98,15 @@ const insertStreamer = function(streamerId, streamerData) {
     let streamer = await getStreamerById(streamerId);
 
     if(streamer){
-      console.log(`[DB${process.pid}] the streamer ${streamerId} is already present, no insertion required`);
-      resolve();
+      console.log(`[DB${process.pid}] the streamer ${streamerId} is already present, no insertion required \n└> updating followers count...`);
+      streamer.followers = streamerData.followers;
+      streamer.save().then(function () {
+        resolve();
+      }).catch(function (err) {
+        console.log(err);
+        reject();
+      });
+      
     }else{
       const liveStreamer = new Streamer({
         streamerId: streamerId,
